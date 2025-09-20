@@ -1,0 +1,364 @@
+--!strict
+--!native
+--[[
+	Author: D4ng3rous351 (1618460770)
+	Created: 2025/03/25
+	Updated: 2025/09/10
+	
+	The purpose of this module is to serve as a library with utility functions for manipulating
+	arrays, tables and dictionaries alike.
+]]
+local module = {}
+--Types--
+type FilterType = "i" | "e" -- Include/Exclude
+type GenericTable = {[any]: any}
+type ComparisonType = "k" | "v" | "kv"
+--Public--
+--[[
+	Returns table that contains given key.
+	<strong>t:</strong> table to be searched.
+	<strong>searched:</strong> key to search for.
+	NOTE: Search is conducted recursively.
+]]
+function module.GetTableWithKey(t: GenericTable, searched: any): GenericTable?
+	assert(typeof(t) == "table", "Argument is not of type table")
+	assert(searched ~= nil, "Key is nil")
+	
+	if t[searched] then return t end
+	
+	local Found: GenericTable?
+	
+	for k: any, v: any in t do
+		if typeof(v) ~= "table" then continue end
+		
+		Found = module.GetTableWithKey(v, searched)
+		if Found then return Found end
+	end
+	
+	return nil
+end
+--[[
+	Returns key that contains a certain value within the provided table.
+	<strong>t:</strong> table to be searched.
+	<strong>value:</strong> value to search for.
+	<strong>recursive:</strong> whether search should be done recursively or not. Defaults to false.
+]]
+function module.GetKeyWithValue(t: GenericTable, value: any, recursive: boolean?): any
+	assert(typeof(t) == "table", "Argument is not of type table")
+	
+	if recursive ~= nil then
+		assert(typeof(recursive) == "boolean", "Argument is not of type boolean")
+	end
+	
+	local Key: any
+	
+	for k: any, v: any in t do
+		if v == value then return k end
+		
+		if typeof(v) == "table" and recursive then
+			Key = module.GetKeyWithValue(v, value)
+			if Key then return Key end
+		end
+	end
+	
+	return nil
+end
+--[[
+	Returns table that contains a certain value.
+	<strong>t:</strong> table to be searched.
+	<strong>value:</strong> value to search for.
+	NOTE: Search is conducted recursively.
+]]
+function module.GetTableWithValue(t: GenericTable, value: any): GenericTable?
+	assert(typeof(t) == "table", "Argument is not of type table")
+	
+	local Found: GenericTable?
+	
+	for _: any, v: any in t do
+		if v == value then return t end
+		
+		if typeof(v) == "table" then
+			Found = module.GetTableWithValue(v :: GenericTable, value)
+			if not Found then continue end
+			
+			return Found
+		end
+	end
+	
+	return nil
+end
+--[[
+	Compares two tables and adds new table's keys to old table and removes keys not found in new table if specified.
+	<strong>old:</strong> table to be updated.
+	<strong>new:</strong> table to match.
+	<strong>recursive:</strong> whether subtables should be updated too. Defaults to false.
+	<strong>RemoveOldKeys:</strong> whether old keys should be removed or not.
+	NOTE: A new table will be created.
+]]
+function module.UpdateTable<T, A>(old: A, new: T, recursive: boolean?, RemoveOldKeys: boolean?): T
+	assert(typeof(old) == "table", "Argument is not of type table")
+	assert(typeof(new) == "table", "Argument is not of type table")
+	if recursive ~= nil then
+		assert(typeof(recursive) == "boolean", "Argument is not of type boolean")
+	end
+	if RemoveOldKeys ~= nil then
+		assert(typeof(RemoveOldKeys) == "boolean", "Argument is not of type boolean")
+	end
+	
+	local Updated: T = {} :: any
+	local Current: any
+	local OldType: string, NewType: string
+	
+	for k: any, v: any in new :: any do
+		Current = old[k]
+		OldType = typeof(Current)
+		NewType = typeof(v)
+		
+		if Current and OldType == NewType then continue end
+		
+		if NewType == "table" then
+			if not recursive then continue end
+			--Inserts current value to new table if it is a table, else it will use value
+			if OldType == "table" then
+				(Updated :: any)[k] = module.UpdateTable(Current :: GenericTable, v)
+			else
+				(Updated :: any)[k] = module.DeepCopy(v)
+			end
+			continue
+		end
+		
+		(Updated :: any)[k] = v
+	end
+	--Removes keys from old table that are not found in new table
+	if RemoveOldKeys then
+		for k: any, v: any in old do
+			if (new :: any)[k] then continue end
+			old[k] = nil
+		end
+	end
+	return Updated
+end
+--[[
+	Merges any amount of tables. If keepkeys is set to false, all keys will be discarded and replaced by indexes.
+	<strong>keepkeys:</strong> whether keys should be kept or replaced with numerical indexes. Defaults to true.
+	<strong>priority:</strong> optional table that will be checked first when merging.
+	<strong>...:</strong> tables to merge.
+	NOTE: If two or more tables have the same key, the merged table's key can be any of the table's key's value
+	unless there is a set priority table.
+]]
+function module.Merge(keepkeys: boolean, priority: GenericTable?, ...: GenericTable): GenericTable
+	assert(typeof(keepkeys) == "boolean", "Argument is not of type boolean")
+	
+	if priority ~= nil then
+		assert(typeof(priority) == "table", "Argument is not of type table")
+	end
+	
+	local Tables: {GenericTable} = {...}
+	local New: GenericTable = {}
+	local Length: number = 0
+	
+	for _: number, t: GenericTable in Tables do
+		if not keepkeys then
+			for k: any, v: any in t do
+				Length += 1
+				New[Length] = v
+			end
+		else
+			for k: any, v: any in t do
+				if priority and priority[k] then
+					New[k] = priority[k]
+					continue
+				end
+				
+				New[k] = v
+			end
+		end
+	end
+	return New
+end
+--[[
+	Removes all values of certain types from a table.
+	<strong>t:</strong> table to be filtered.
+	<strong>filter:</strong> array of types to be filtered in the table.
+	<strong>filtertype:</strong> determines whether filter will include or exclude.
+	NOTE: Will not destroy instances.
+]]
+function module.FilterTypes(t: GenericTable, filter: {string}, filtertype: FilterType): GenericTable
+	assert(typeof(t) == "table", "Argument is not of type table")
+	assert(typeof(filter) == "table", "Argument is not of type table")
+	assert(typeof(filtertype) == "string" and filtertype == "i" or filtertype == "e", "Argument is invalid or not of type string")
+	
+	for k: any, v: any in t do
+		--If filtertype is set to "e" and value is found in table, loop will continue to next iter
+		--If filtertype is set to "i" and value is not found in table, loop will continue to next iter
+		if filtertype == "e" then
+			if table.find(filter, typeof(v)) then continue end
+		elseif filtertype == "i" then
+			if not table.find(filter, typeof(v)) then continue end
+		end
+		
+		t[k] = nil
+	end
+	
+	return t
+end
+--[[
+	Filters all values in table and returns the key and value of best result.
+	<strong>t:</strong> table that will be checked.
+	<strong>compare:</strong> comparison function.
+	<strong>...:</strong> additional arguments to pass to comparison function.
+]]
+function module.Filter<K, V, A...>(t: {[K]: V}, compare: (a: V, b: V, A...) -> boolean, ...: A...): (K, V)
+	assert(typeof(t) == "table", "Argument is not of type table")
+	assert(typeof(compare) == "function", "Argument is not of type function")
+	
+	local BestKey: K, Best: V
+	for k: K, v: V in t do
+		if not BestKey or not Best then
+			BestKey = k
+			Best = v
+			continue
+		end
+		
+		if compare(Best, v, ...) then
+			BestKey = k
+			Best = v
+		end
+	end
+	
+	return BestKey, Best
+end
+--[[
+	Returns whether two tables are identical by comparing all values/keys.
+	<strong>t1:</strong> table to compare.
+	<strong>t2:</strong> table to compare.
+	<strong>comparetype:</strong> whether keys, values or both should be compared.
+]]
+function module.Compare(t1: GenericTable, t2: GenericTable, comparetype: ComparisonType): boolean
+	assert(typeof(t1) == "table", "Argument is not of type table")
+	assert(typeof(t2) == "table", "Argument is not of type table")
+	assert(comparetype == "k" or comparetype == "v" or comparetype == "kv", "Invalid comparison specifier")
+	
+	if comparetype == "k" then
+		for k: any, v: any in t1 do
+			if not t2[k] then return false end
+		end
+		
+		for k: any, v: any in t2 do
+			if not t1[k] then return false end
+		end
+	elseif comparetype == "v" then
+		for k: any, v: any in t1 do
+			if v ~= t2[k] then return false end
+		end
+		for k: any, v: any in t2 do
+			if v ~= t1[k] then return false end
+		end
+	else
+		for k: any, v: any in t1 do
+			if v ~= t2[k] or not t2[k] then return false end
+		end
+		for k: any, v: any in t2 do
+			if v ~= t1[k] or not t1[k] then return false end
+		end
+	end
+	
+	return true
+end
+--[[
+	Returns key name and value of a certain key within a table.
+	<strong>t:</strong> table to be searched.
+	<strong>key:</strong> key to search for.
+	NOTE: Search is conducted recursively.
+]]
+function module.GetKey(t: GenericTable, key: any): (any, any)
+	assert(typeof(t) == "table", "Argument is not of type table")
+	assert(typeof(key) ~= nil, "Key is nil")
+	
+	local Key: any, Value: any
+	
+	for k: any, v: any in t do
+		if k == key then return k, v end
+		
+		if typeof(v) == "table" then
+			Key, Value = module.GetKey(v :: GenericTable, key)
+			if not Key and not Value then continue end
+			return Key, Value
+		end
+	end
+	
+	return nil, nil
+end
+--[[
+	Returns deep copy of a table.
+	<strong>t:<strong> table to create deep copy of.
+]]
+function module.DeepCopy<T>(t: T): T
+	assert(typeof(t) == "table", "Argument is not of type table")
+	local NewTable: T = table.clone(t) :: any
+	for k: any, v: any in t :: any do
+		if typeof(v) ~= "table" then continue end
+		(NewTable :: any)[k] = module.DeepCopy(v)
+	end
+	return NewTable
+end
+--[[
+	Returns amount of items in table regardless of the data type of the keys.
+	<strong>t:</strong> table to count elements of.
+]]
+function module.GetLength(t: GenericTable): number
+	local Length: number = 0
+	for _: any in t do Length += 1 end
+	return Length
+end
+--[[
+	Returns whether a table is empty or not regardless of data type of keys.
+	<strong>t:</strong> table to be checked.
+]]
+function module.IsEmpty(t: GenericTable): boolean
+	return next(t) == nil
+end
+--[[
+	Swaps two keys in a table.
+	<strong>t:</strong> table to swap keys of.
+	<strong>a:</strong> key to swap.
+	<strong>b:</strong> key to swap.
+]]
+function module.Swap(t: GenericTable, a: any, b: any): ()
+	local Temp: any = t[a]
+	t[a] = t[b]
+	t[b] = Temp
+end
+--[[
+	Reverses an array.
+	<strong>t:</strong> array to reverse.
+	NOTE: Only works with tables with numeric keys (indexes).
+]]
+function module.Reverse<T>(t: {T}): {T}
+	local Reversed: {T} = {}
+	local Length: number = 0
+	
+	for i: number = #t, 1, -1 do
+		Length += 1
+		Reversed[Length] = t[i]
+	end
+	
+	return Reversed
+end
+--[[
+	Creates an array from a table by replacing all keys with numerical indexes.
+	<strong>t:</strong> table whose keys to remove.
+	<strong>NOTE:</strong> a new table will be created.
+]]
+function module.RemoveKeys<K, V>(t: {[K]: V}): {V}
+	local New: {V} = {}
+	local Length: number = 0
+	
+	for _: K, value: V in t do
+		Length += 1
+		New[Length] = value
+	end
+	
+	return New
+end
+return module
