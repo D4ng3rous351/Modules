@@ -8,12 +8,17 @@
 	The purpose of this module is to serve as a library with utility functions for manipulating
 	arrays, tables and dictionaries alike.
 ]]
+
 local module = {}
+
 --Types--
 type FilterType = "i" | "e" -- Include/Exclude
 type GenericTable = {[any]: any}
 type ComparisonType = "k" | "v" | "kv"
+
+
 --Public--
+
 --[[
 	Returns table that contains given key.
 	<strong>t:</strong> table to be searched.
@@ -37,6 +42,7 @@ function module.GetTableWithKey(t: GenericTable, searched: any): GenericTable?
 	
 	return nil
 end
+
 --[[
 	Returns key that contains a certain value within the provided table.
 	<strong>t:</strong> table to be searched.
@@ -63,6 +69,7 @@ function module.GetKeyWithValue(t: GenericTable, value: any, recursive: boolean?
 	
 	return nil
 end
+
 --[[
 	Returns table that contains a certain value.
 	<strong>t:</strong> table to be searched.
@@ -87,6 +94,7 @@ function module.GetTableWithValue(t: GenericTable, value: any): GenericTable?
 	
 	return nil
 end
+
 --[[
 	Compares two tables and adds new table's keys to old table and removes keys not found in new table if specified.
 	<strong>old:</strong> table to be updated.
@@ -138,6 +146,7 @@ function module.UpdateTable<T, A>(old: A, new: T, recursive: boolean?, RemoveOld
 	end
 	return Updated
 end
+
 --[[
 	Merges any amount of tables. If keepkeys is set to false, all keys will be discarded and replaced by indexes.
 	<strong>keepkeys:</strong> whether keys should be kept or replaced with numerical indexes. Defaults to true.
@@ -176,6 +185,7 @@ function module.Merge(keepkeys: boolean, priority: GenericTable?, ...: GenericTa
 	end
 	return New
 end
+
 --[[
 	Removes all values of certain types from a table.
 	<strong>t:</strong> table to be filtered.
@@ -202,6 +212,7 @@ function module.FilterTypes(t: GenericTable, filter: {string}, filtertype: Filte
 	
 	return t
 end
+
 --[[
 	Filters all values in table and returns the key and value of best result.
 	<strong>t:</strong> table that will be checked.
@@ -228,6 +239,7 @@ function module.Filter<K, V, A...>(t: {[K]: V}, compare: (a: V, b: V, A...) -> b
 	
 	return BestKey, Best
 end
+
 --[[
 	Returns whether two tables are identical by comparing all values/keys.
 	<strong>t1:</strong> table to compare.
@@ -265,6 +277,7 @@ function module.Compare(t1: GenericTable, t2: GenericTable, comparetype: Compari
 	
 	return true
 end
+
 --[[
 	Returns key name and value of a certain key within a table.
 	<strong>t:</strong> table to be searched.
@@ -289,6 +302,7 @@ function module.GetKey(t: GenericTable, key: any): (any, any)
 	
 	return nil, nil
 end
+
 --[[
 	Returns deep copy of a table.
 	<strong>t:<strong> table to create deep copy of.
@@ -311,6 +325,7 @@ function module.GetLength(t: GenericTable): number
 	for _: any in t do Length += 1 end
 	return Length
 end
+
 --[[
 	Returns whether a table is empty or not regardless of data type of keys.
 	<strong>t:</strong> table to be checked.
@@ -318,6 +333,7 @@ end
 function module.IsEmpty(t: GenericTable): boolean
 	return next(t) == nil
 end
+
 --[[
 	Swaps two keys in a table.
 	<strong>t:</strong> table to swap keys of.
@@ -329,6 +345,7 @@ function module.Swap(t: GenericTable, a: any, b: any): ()
 	t[a] = t[b]
 	t[b] = Temp
 end
+
 --[[
 	Reverses an array.
 	<strong>t:</strong> array to reverse.
@@ -345,6 +362,7 @@ function module.Reverse<T>(t: {T}): {T}
 	
 	return Reversed
 end
+
 --[[
 	Creates an array from a table by replacing all keys with numerical indexes.
 	<strong>t:</strong> table whose keys to remove.
