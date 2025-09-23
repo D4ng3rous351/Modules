@@ -2,7 +2,7 @@
 --[[
 	Author: D4ng3rous351
 	Created: 2025/06/12
-	Updated: 2025/09/06
+	Updated: 2025/09/22
 	
 	The purpose of this module is to be an all-round system for saving and loading
 	player data.
@@ -111,7 +111,6 @@ end
 
 
 --Public--
-
 --[[
 	Returns player's data from the datastore.
 	<strong>player:</strong> player whose data to retrieve.
@@ -251,6 +250,7 @@ end
 	Returns the specified amount of players' data from the ordered data store with the provided name.
 	<strong>info:</strong> meta data to pass about the request.
 	<strong>...:</strong> additional arguments to pass to the callback.
+	NOTE: Will not return if advancing to next page failed.
 ]]
 function module.GetSortedAsync<A...>(info: SortedRequestInfo<(string, A...)>, ...: A...): SortedPages?
 	assert(typeof(info) == "table", "Argument is not of type table")
@@ -266,18 +266,13 @@ function module.GetSortedAsync<A...>(info: SortedRequestInfo<(string, A...)>, ..
 	
 	local Sorted: DataStorePages = Temp :: DataStorePages
 	local Pages: SortedPages = {}
+	local CurrentPage: number = 1
 	
-	Pages[1] = Sorted:GetCurrentPage()
-	
-	if not Sorted.IsFinished then
-		local CurrentPage: number = 2
-		
-		while not Sorted.IsFinished do
-			Pages[CurrentPage] = Sorted:GetCurrentPage()
-			CurrentPage += 1
-			Sorted:AdvanceToNextPageAsync()
-		end
-	end
+	repeat
+		Pages[CurrentPage] = Sorted:GetCurrentPage()
+		CurrentPage += 1
+		if not Sorted.IsFinished then Sorted:AdvanceToNextPageAsync() end
+	until Sorted.IsFinished
 	
 	return Pages
 end
